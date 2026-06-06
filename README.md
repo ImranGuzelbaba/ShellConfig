@@ -1,7 +1,7 @@
 # ShellConfig
 
 Ce repo contient plein d'alias, fonctions et scripts que j'utilise et qui sont dans les fichiers config des shells (`ZSH` et `PowerShell`) ou fichiers exécutables à part.\
-Ils ont été écrit par moi mais aussi aidé et généré par IA (pas de **AI Slop**, je regarde le code, je test bien et je corrige !).
+Ils ont été écrits par moi mais aussi aidés et générés par IA (pas de **AI Slop**, je regarde le code, je teste bien et je corrige !).
 
 ---
 ## Exemples de Fonctionnalités
@@ -17,8 +17,8 @@ Ils ont été écrit par moi mais aussi aidé et généré par IA (pas de **AI S
 - Avoir [`Termux`](https://termux.dev/en/) pour avoir un terminal sur Android
 
 Certaines fonctions et alias nécessitent des outils tiers.\
-Sur Linux, pour installer les outils, on peut utiliser simplement le gestionnaire de paquet (`apt`, `pacman`, `dnf`, ...), mais aussi sur Windows via `WinGet`.
-Rechercher d'abord dans les dépôts via le gestionanire de paquet est très recommandé:
+Sur Linux, pour installer les outils, on peut utiliser simplement le gestionnaire de paquets (`apt`, `pacman`, `dnf`, ...), mais aussi sur Windows via `WinGet`.
+Rechercher d'abord dans les dépôts via le gestionnaire de paquet est très recommandé:
 ### Arch based (CachyOS, Manjaro, ...)
 ##### Recherche
    ```bash
@@ -26,7 +26,7 @@ Rechercher d'abord dans les dépôts via le gestionanire de paquet est très rec
    ```
 ##### Installation
    ```bash
-   pacman -S [PAQUET]
+   sudo pacman -S [PAQUET]
    ```
 
 ### Debian based (Linux Mint, Kali, Ubuntu, ...)
@@ -37,7 +37,7 @@ Rechercher d'abord dans les dépôts via le gestionanire de paquet est très rec
 
 ##### Installation
    ```bash
-   apt install [PAQUET]
+   sudo apt install [PAQUET]
    ```
 
 ### RedHat based (Fedora, Bazzite, ...)
@@ -48,7 +48,7 @@ Rechercher d'abord dans les dépôts via le gestionanire de paquet est très rec
    
 ###### Installation
    ```bash
-   dnf install [PAQUET]
+   sudo dnf install [PAQUET]
    ```
 
 ### Android (Termux)
@@ -78,7 +78,7 @@ Rechercher d'abord dans les dépôts via le gestionanire de paquet est très rec
 
 ### Outils
 Outils tiers à installer si besoin pour pouvoir utiliser les shells et les fichiers de configurations:
-- [7-zip](https://www.7-zip.org/) - *Compression et Archivage des fichiers*
+- [7-zip](https://www.7-zip.org/) - *Compression et Archivage des fichiers (Moderne)*
 - [adb](https://developer.android.com/tools/adb?hl=fr) (via [SCRCPY](https://scrcpy.org/) pour Windows) - *Accès au Téléphone via Ordi*
 - [bat](https://github.com/sharkdp/bat) - *Meilleure version de `cat`*
 - [eza](https://github.com/eza-community/eza) - *Meilleure version de `ls`*
@@ -88,18 +88,49 @@ Outils tiers à installer si besoin pour pouvoir utiliser les shells et les fich
 - [msedit](https://github.com/microsoft/edit) - *Éditeur de texte simple d'utilisation (Comme Notepad + Couleurs)*
 - [Oh-My-Posh](https://ohmyposh.dev/) - *Prompt pour les shells*
 - [Oh-My-Zsh](https://ohmyz.sh/) - *Plugins et Prompt pour ZSH*
+- [ripgrep](https://github.com/burntsushi/ripgrep) - *Meilleure version de `grep`*
 - [SSHFS](https://github.com/libfuse/sshfs) (Pour Windows [SSHFS-Win](https://github.com/winfsp/sshfs-win)) - *Accès aux Fichiers de Téléphone via Ordi*
 - [Sysinternals Suite](https://learn.microsoft.com/fr-fr/sysinternals/downloads/sysinternals-suite) - *Ensemble d'outils pour Windows*
 - [tldr](https://tldr.sh) - *Équivalent de `man` mais court et compréhensible*
+- [xz](https://github.com/tukaani-project/xz) - *Compression et Archivage des fichiers*
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - *Téléchargeur de vidéo YouTube et d'autres sites*
 - [zoxide](https://github.com/ajeetdsouza/zoxide) - *Meilleure version de `cd`*
+
+---
+## Test
+Mieux vaut tester les fichiers de configuration du repo avant de les ajouter dans les fichiers du PC.
+On peut faire en sorte qu'on puisse exécuter le shell avec le fichier de config du repo à la place du fichier habituel.
+
+Cloner le dépôt :
+   ```bash
+   git clone https://github.com/ImranGuzelbaba/ShellConfig.git ~/ShellConfig
+   ```
+
+#### Pour ZSH (Linux/Android)
+On met la variable `ZDOTDIR` avec comme valeur le chemin du repo où il y a le fichier `.zshrc` puis on exécute `zsh`:
+   ```bash
+   ZDOTDIR=~/ShellConfig zsh
+   ```
+
+Lorsqu'on a fini de tester, on écrit `exit` ou on fait `[CTRL]+D`.
+
+#### Pour PowerShell (Windows)
+On exécute `pwsh` avec comme arguments :
+- `-NoProfile` : Exécution sans chargement de configuration `$PROFILE`
+- `-NoExit` : Exécution sans la fin de programme (intéractif)
+- `-Command` : Exécution de commande (ici sourcer le fichier de config)
+
+   ```powershell
+   pwsh -NoProfile -NoExit -Command ". $HOME\ShellConfig\PROFILE.ps1"
+   ```
+Lorsqu'on a fini de tester, on écrit `exit`.
 
 ---
 ## Installation
 
 Cloner le dépôt (préférablement dans le répertoire personnel `~`) :
    ```bash
-   git clone https://github.com/ImranGuzelbaba/ShellConfig.git
+   git clone https://github.com/ImranGuzelbaba/ShellConfig.git ~/ShellConfig
    ```
 
 ### Pour ZSH (Linux/Android)
@@ -138,4 +169,5 @@ Cloner le dépôt (préférablement dans le répertoire personnel `~`) :
 
 ---
 ## Modification des configurations
-J'ai fait en sorte de mettre entre crochet les variables qu'on peut changer (`var=[VALEUR]`). En ajoutant le contenu des fichiers, il faut bien regarder et modifier ce qu'il faut.
+C'est possible et même recommandé de modifier certaines choses, il peut y avoir des parties entre crochets (comme les valeurs des variables) qu'on peut changer (`var=[VALEUR]`).\
+En ajoutant le contenu des fichiers, il faut bien regarder et modifier ce qu'il faut.
