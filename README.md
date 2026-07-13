@@ -168,6 +168,45 @@ Cloner le dépôt (préférablement dans le répertoire personnel `~`) :
    ```
 
 ---
+## Utilisation des scripts (Linux)
+
+Pour pouvoir exécuter facilement les scripts du dossier `scripts/Linux` (comme `benchmark_perf.sh`) depuis n'importe où sans saisir le chemin complet :
+
+1. Créer un dossier local pour les exécutables personnels s'il n'existe pas encore :
+   ```bash
+   mkdir -p ~/.local/bin
+   ```
+
+2. Créer un lien symbolique (symlink) du script vers ce dossier. Cela permet de garder le script à jour automatiquement après chaque `git pull` :
+   ```bash
+   ln -s ~/ShellConfig/scripts/Linux/benchmark_perf.sh ~/.local/bin/benchmark_perf
+   # OU, créer un lien pour tous les scripts du dossier d'un seul coup
+   ln -s ~/ShellConfig/scripts/Linux/* ~/.local/bin/
+   ```
+   *(Note : Il est possible de copier le fichier à la place du lien symbolique avec `cp ~/ShellConfig/scripts/Linux/benchmark_perf.sh ~/.local/bin/benchmark_perf`, mais il faudra le recopier à chaque `git pull`. Cela peut toutefois être utile si on souhaite modifier localement le script sans que `git` n'écrase nos modifications).*
+
+
+3. S'assurer que le script d'origine est exécutable :
+   ```bash
+   chmod +x ~/ShellConfig/scripts/Linux/benchmark_perf.sh
+   ```
+
+4. Ajouter le dossier `~/.local/bin` à la variable d'environnement `PATH` dans le fichier `~/.zshrc` (ou `~/.bashrc`) :
+   ```bash
+   export PATH="$HOME/.local/bin:$PATH"
+   ```
+
+5. Appliquer les changements du shell :
+   ```bash
+   source ~/.zshrc
+   ```
+
+On peut alors lancer le benchmark simplement avec la commande :
+```bash
+benchmark_perf
+```
+
+---
 ## Modification des configurations
 C'est possible et même recommandé de modifier certaines choses, il peut y avoir des parties entre crochets (comme les valeurs des variables) qu'on peut changer (`var=[VALEUR]`).\
 En ajoutant le contenu des fichiers, il faut bien regarder et modifier ce qu'il faut.
