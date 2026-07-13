@@ -40,6 +40,24 @@ NO_INTERACTIVE_FLAG=false
 INTERACTIVE_FLAG=false
 RUN_PASSED=false
 RANGE_PASSED=false
+SKIP_POWER_FLAG=false
+QUIET_FLAG=false
+CLEAN_FLAG=false
+KEEP_TESTS=2
+TEST_REQUESTED=false
+
+# Fonctions d'affichage conditionnel pour le mode silencieux (-q/--quiet)
+log_print() {
+    if [ "$QUIET_FLAG" = false ]; then
+        echo -e "$@"
+    fi
+}
+
+log_print_n() {
+    if [ "$QUIET_FLAG" = false ]; then
+        echo -n "$@"
+    fi
+}
 
 # Fonction d'affichage de l'aide
 show_help() {
@@ -49,9 +67,10 @@ show_help() {
     local yellow="\e[33m"
     local cyan="\e[36m"
     local reset="\e[0m"
+    local custom="\e[93m"
 
     echo -e "${bold}NOM${reset}"
-    echo -e "    benchmark_perf.sh - Script de test comparatif de performance pour Python3"
+    echo -e "    ${custom}benchmark_perf.sh V1.1${reset} - Script de test comparatif de performance pour Python3"
     echo -e ""
     echo -e "${bold}SYNOPSIS${reset}"
     echo -e "    ${green}./benchmark_perf.sh${reset} [${yellow}OPTIONS${reset}]"
@@ -78,6 +97,18 @@ show_help() {
     echo -e "        Force la demande interactive des valeurs manquantes ou déjà fournies."
     echo -e "        Les valeurs fournies par -r et -p seront proposées comme valeurs par défaut."
     echo -e ""
+    echo -e "    ${green}-s${reset}, ${green}--skip-power${reset}"
+    echo -e "        Désactive la gestion automatique et le changement du profil énergétique."
+    echo -e ""
+    echo -e "    ${green}-q${reset}, ${green}--quiet${reset}"
+    echo -e "        Mode silencieux. Masque les messages de progression et n'affiche"
+    echo -e "        que le tableau de résultats final dans le terminal."
+    echo -e ""
+    echo -e "    ${green}-c${reset} ${cyan}[int]${reset}, ${green}--clean${reset} ${cyan}[int]${reset}"
+    echo -e "        Nettoie le dossier des rapports pour ne conserver que les N derniers"
+    echo -e "        tests (runs). Par défaut, conserve les ${yellow}2${reset} derniers tests."
+    echo -e "        Affiche en détail les fichiers supprimés et conservés."
+    echo -e ""
     echo -e "    ${green}-r${reset} ${cyan}[int]${reset}, ${green}--run${reset} ${cyan}[int]${reset}"
     echo -e "        Spécifie le nombre d'exécutions (runs) par configuration."
     echo -e "        (Valeur par défaut : ${yellow}$NUM_RUNS${reset})"
@@ -98,6 +129,9 @@ show_help() {
     echo -e ""
     echo -e "    ${green}./benchmark_perf.sh${reset} ${green}-r${reset} ${cyan}5${reset} ${green}-p${reset} ${cyan}\"5 * 10**7\"${reset} ${green}-i${reset}"
     echo -e "        Force l'invite interactive en proposant 5 et \"5 * 10**7\" comme valeurs par défaut."
+    echo -e ""
+    echo -e "    ${green}./benchmark_perf.sh${reset} ${green}-c${reset} ${cyan}3${reset}"
+    echo -e "        Nettoie le dossier pour garder les 3 derniers tests, puis lance le benchmark."
     echo ""
     exit 0
 }
@@ -110,16 +144,37 @@ while [[ $# -gt 0 ]]; do
             ;;
         -n|--no-interaction)
             NO_INTERACTIVE_FLAG=true
+            TEST_REQUESTED=true
             shift
             ;;
         -i|--interactive)
             INTERACTIVE_FLAG=true
+            TEST_REQUESTED=true
             shift
+            ;;
+        -s|--skip-power)
+            SKIP_POWER_FLAG=true
+            shift
+            ;;
+        -q|--quiet)
+            QUIET_FLAG=true
+            shift
+            ;;
+        -c|--clean)
+            CLEAN_FLAG=true
+            if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
+                KEEP_TESTS="$2"
+                shift 2
+            else
+                KEEP_TESTS=2
+                shift 1
+            fi
             ;;
         -r|--run)
             if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
                 NUM_RUNS="$2"
                 RUN_PASSED=true
+                TEST_REQUESTED=true
                 shift 2
             else
                 echo -e "\e[31mErreur : L'option $1 nécessite un entier positif en paramètre.\e[0m" >&2
@@ -130,6 +185,7 @@ while [[ $# -gt 0 ]]; do
             if [[ -n "$2" ]]; then
                 RANGE_EXPR="$2"
                 RANGE_PASSED=true
+                TEST_REQUESTED=true
                 shift 2
             else
                 echo -e "\e[31mErreur : L'option $1 nécessite une expression de plage en paramètre.\e[0m" >&2
@@ -143,6 +199,115 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Fonction de nettoyage des rapports de performance anciens
+clean_old_runs() {
+    local keep_count="$1"
+
+    # Sécurité 1 : S'assurer que PERF_DIR n'est pas vide, racine (/), ou le répertoire HOME lui-même
+    if [ -z "$PERF_DIR" ] || [ "$PERF_DIR" = "/" ] || [ "$PERF_DIR" = "$HOME" ]; then
+        echo "Erreur : Chemin de dossier de performance invalide ou dangereux ($PERF_DIR)." >&2
+        exit 1
+    fi
+
+    # Sécurité 2 : S'assurer que le dossier existe et est bien un répertoire
+    if [ ! -d "$PERF_DIR" ]; then
+        log_print "[+] Le dossier $PERF_DIR n'existe pas. Rien à nettoyer."
+        return
+    fi
+
+    # Récupérer la liste des fichiers triés par nom (donc par date chronologique)
+    local all_files
+    all_files=$(find "$PERF_DIR" -maxdepth 1 -type f \( -name "normal_python_perf-*.txt" -o -name "game-performance_python_perf-*.txt" -o -name "gamemoderun_python_perf-*.txt" \) | sort)
+
+    if [ -z "$all_files" ]; then
+        log_print "[+] Aucun rapport de performance trouvé dans $PERF_DIR pour le nettoyage."
+        return
+    fi
+
+    # Extraire les horodatages uniques (format YYYY-MM-DD_HH-MM-SS)
+    local timestamps
+    timestamps=$(echo "$all_files" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}' | sort -u)
+
+    if [ -z "$timestamps" ]; then
+        log_print "[+] Aucun rapport avec un horodatage valide trouvé pour le nettoyage."
+        return
+    fi
+
+    local total_timestamps
+    total_timestamps=$(echo "$timestamps" | wc -l)
+
+    # Si le nombre de tests existants est inférieur ou égal à la limite de conservation, on s'arrête
+    if [ "$keep_count" -ge "$total_timestamps" ]; then
+        log_print "[+] Nombre de tests existants ($total_timestamps) inférieur ou égal à la limite de conservation ($keep_count). Aucun fichier supprimé."
+        log_print "Fichiers conservés :"
+        echo "$all_files" | while read -r f; do
+            if [ -n "$f" ]; then
+                log_print "  - ${f/#$HOME/\~}"
+            fi
+        done
+        return
+    fi
+
+    # Déterminer les horodatages à conserver (les N derniers)
+    local keep_timestamps
+    keep_timestamps=$(echo "$timestamps" | tail -n "$keep_count")
+
+    # Classer les fichiers à supprimer et à garder
+    local files_to_delete=()
+    local files_to_keep=()
+
+    while read -r f; do
+        if [ -z "$f" ]; then continue; fi
+        local matched=false
+        while read -r ts; do
+            if [ -z "$ts" ]; then continue; fi
+            if [[ "$f" == *"$ts"* ]]; then
+                matched=true
+                break
+            fi
+        done <<< "$keep_timestamps"
+
+        if [ "$matched" = true ]; then
+            files_to_keep+=("$f")
+        else
+            files_to_delete+=("$f")
+        fi
+    done <<< "$all_files"
+
+    # Suppression verbeuse avec Sécurité 3 (double-validation du chemin et du nom de fichier)
+    local deleted_count=0
+    if [ ${#files_to_delete[@]} -gt 0 ]; then
+        for f in "${files_to_delete[@]}"; do
+            if [[ "$f" == "$PERF_DIR"/normal_python_perf-*.txt ]] || \
+               [[ "$f" == "$PERF_DIR"/game-performance_python_perf-*.txt ]] || \
+               [[ "$f" == "$PERF_DIR"/gamemoderun_python_perf-*.txt ]]; then
+                log_print "Suppression de ${f/#$HOME/\~}"
+                rm -f "$f"
+                deleted_count=$((deleted_count + 1))
+            else
+                log_print "[Avertissement] Fichier suspect ignoré par sécurité : ${f/#$HOME/\~}"
+            fi
+        done
+    fi
+
+    log_print "[+] Nombre de fichiers supprimés : $deleted_count"
+
+    log_print "Fichiers conservés :"
+    for f in "${files_to_keep[@]}"; do
+        log_print "  - ${f/#$HOME/\~}"
+    done
+}
+
+# Exécuter le nettoyage si demandé
+if [ "$CLEAN_FLAG" = true ]; then
+    clean_old_runs "$KEEP_TESTS"
+fi
+
+# Si le nettoyage a été fait et qu'aucun test n'a été explicitement demandé, on quitte ici
+if [ "$CLEAN_FLAG" = true ] && [ "$TEST_REQUESTED" = false ]; then
+    exit 0
+fi
 
 # Déterminer si on doit poser des questions interactives
 ASK_RUNS=false
@@ -159,54 +324,63 @@ fi
 
 # Prompts utilisateur interactifs
 if [ "$ASK_RUNS" = true ] || [ "$ASK_RANGE" = true ]; then
-    echo "=================================================="
-    echo "       Configuration du Benchmark de Performance  "
-    echo "=================================================="
+    # On n'affiche les invites de configuration que si on n'est pas en mode silencieux
+    if [ "$QUIET_FLAG" = false ]; then
+        echo "=================================================="
+        echo "       Configuration du Benchmark de Performance  "
+        echo "=================================================="
+    fi
 
     # 1. Demande du nombre de runs
     if [ "$ASK_RUNS" = true ]; then
-        read -e -p "Entrez le nombre d'exécutions (runs) par configuration [par défaut : $NUM_RUNS] : " input_runs
-        NUM_RUNS=${input_runs:-$NUM_RUNS}
+        if [ "$QUIET_FLAG" = false ]; then
+            read -e -p "Entrez le nombre d'exécutions (runs) par configuration [par défaut : $NUM_RUNS] : " input_runs
+            NUM_RUNS=${input_runs:-$NUM_RUNS}
+        fi
     fi
 
     # Validation du nombre de runs
     if ! [[ "$NUM_RUNS" =~ ^[0-9]+$ ]] || [ "$NUM_RUNS" -le 0 ]; then
-        echo "[!] Nombre d'exécutions invalide. Retour à la valeur par défaut : 10"
+        log_print "[!] Nombre d'exécutions invalide. Retour à la valeur par défaut : 10"
         NUM_RUNS=10
     fi
 
     # 2. Demande de la plage Python
     if [ "$ASK_RANGE" = true ]; then
-        echo -e "\n[!] Note : Le temps d'exécution varie de façon linéaire O(N) avec la taille de la plage :"
-        echo "    - 1 * 10**8 prend ~5s par run (~50s au total pour 10 runs)"
-        echo "    - 5 * 10**8 prend ~25s par run (~250s au total pour 10 runs)"
-        read -e -p "Entrez la taille de la plage Python (ex. 1 * 10**8) [par défaut : $RANGE_EXPR] : " input_range
-        RANGE_EXPR=${input_range:-$RANGE_EXPR}
+        if [ "$QUIET_FLAG" = false ]; then
+            echo -e "\n[!] Note : Le temps d'exécution varie de façon linéaire O(N) avec la taille de la plage :"
+            echo "    - 1 * 10**8 prend ~5s par run (~50s au total pour 10 runs)"
+            echo "    - 5 * 10**8 prend ~25s par run (~250s au total pour 10 runs)"
+            read -e -p "Entrez la taille de la plage Python (ex. 1 * 10**8) [par défaut : $RANGE_EXPR] : " input_range
+            RANGE_EXPR=${input_range:-$RANGE_EXPR}
+        fi
     fi
 
     # Validation de l'expression de plage Python
     if ! python3 -c "int($RANGE_EXPR)" >/dev/null 2>&1; then
-        echo "[!] Expression Python invalide. Retour à la valeur par défaut : 1 * 10**8"
+        log_print "[!] Expression Python invalide. Retour à la valeur par défaut : 1 * 10**8"
         RANGE_EXPR="1 * 10**8"
     fi
 
-    echo -e "\n[+] Benchmark configuré : $NUM_RUNS runs par config avec la plage ($RANGE_EXPR)."
-    echo "=================================================="
+    if [ "$QUIET_FLAG" = false ]; then
+        echo -e "\n[+] Benchmark configuré : $NUM_RUNS runs par config avec la plage ($RANGE_EXPR)."
+        echo "=================================================="
+    fi
 else
     # Validation pour le mode automatique / non-interactif
     if ! [[ "$NUM_RUNS" =~ ^[0-9]+$ ]] || [ "$NUM_RUNS" -le 0 ]; then
-        echo "[!] Nombre d'exécutions invalide. Retour à la valeur par défaut : 10"
+        log_print "[!] Nombre d'exécutions invalide. Retour à la valeur par défaut : 10"
         NUM_RUNS=10
     fi
     if ! python3 -c "int($RANGE_EXPR)" >/dev/null 2>&1; then
-        echo "[!] Expression Python invalide. Retour à la valeur par défaut : 1 * 10**8"
+        log_print "[!] Expression Python invalide. Retour à la valeur par défaut : 1 * 10**8"
         RANGE_EXPR="1 * 10**8"
     fi
 
     if [ "$NO_INTERACTIVE_FLAG" = true ]; then
-        echo "[+] Mode non-interactif : Exécution avec $NUM_RUNS runs et la plage ($RANGE_EXPR)."
+        log_print "[+] Mode non-interactif : Exécution avec $NUM_RUNS runs et la plage ($RANGE_EXPR)."
     else
-        echo "[+] Exécution automatique (arguments fournis) : $NUM_RUNS runs et la plage ($RANGE_EXPR)."
+        log_print "[+] Exécution automatique (arguments fournis) : $NUM_RUNS runs et la plage ($RANGE_EXPR)."
     fi
 fi
 
@@ -215,21 +389,26 @@ USE_ASUSCTL=false
 USE_POWERPROFILESCTL=false
 ORIG_PROFILE=""
 
-if command -v asusctl >/dev/null 2>&1; then
-    USE_ASUSCTL=true
-    # Recherche flexible du profil d'alimentation pour s'adapter aux différentes versions d'asusctl
-    ORIG_PROFILE=$(asusctl profile get | grep -i 'active profile' | awk -F' ' '{print $NF}')
-    echo "[+] asusctl trouvé. Profil d'origine : $ORIG_PROFILE"
-elif command -v powerprofilesctl >/dev/null 2>&1; then
-    USE_POWERPROFILESCTL=true
-    ORIG_PROFILE=$(powerprofilesctl get)
-    echo "[+] powerprofilesctl trouvé. Profil d'origine : $ORIG_PROFILE"
+if [ "$SKIP_POWER_FLAG" = false ]; then
+    if command -v asusctl >/dev/null 2>&1; then
+        USE_ASUSCTL=true
+        # Recherche flexible du profil d'alimentation pour s'adapter aux différentes versions d'asusctl
+        ORIG_PROFILE=$(asusctl profile get | grep -i 'active profile' | awk -F' ' '{print $NF}')
+        log_print "[+] asusctl trouvé. Profil d'origine : $ORIG_PROFILE"
+    elif command -v powerprofilesctl >/dev/null 2>&1; then
+        USE_POWERPROFILESCTL=true
+        ORIG_PROFILE=$(powerprofilesctl get)
+        log_print "[+] powerprofilesctl trouvé. Profil d'origine : $ORIG_PROFILE"
+    else
+        log_print "[!] Aucun utilitaire de profil énergétique supporté (asusctl ou powerprofilesctl) n'a été trouvé. La gestion du profil d'énergie sera ignorée."
+    fi
 else
-    echo "[!] Aucun utilitaire de profil énergétique supporté (asusctl ou powerprofilesctl) n'a été trouvé. La gestion du profil d'énergie sera ignorée."
+    log_print "[+] Optimisation du profil énergétique désactivée (option --skip-power active)."
 fi
 
 # Fonction pour s'assurer que le mode performance est actif
 ensure_performance_mode() {
+    if [ "$SKIP_POWER_FLAG" = true ]; then return; fi
     if [ "$USE_ASUSCTL" = true ] && [ -n "$ORIG_PROFILE" ]; then
         local current
         current=$(asusctl profile get | grep -i 'active profile' | awk -F' ' '{print $NF}')
@@ -247,11 +426,12 @@ ensure_performance_mode() {
 
 # Fonction pour restaurer le profil énergétique d'origine
 restore_original_profile() {
+    if [ "$SKIP_POWER_FLAG" = true ]; then return; fi
     if [ "$USE_ASUSCTL" = true ] && [ -n "$ORIG_PROFILE" ]; then
-        echo -e "\n[+] Restauration du profil asusctl à : $ORIG_PROFILE..."
+        log_print -e "\n[+] Restauration du profil asusctl à : $ORIG_PROFILE..."
         asusctl profile set "$ORIG_PROFILE" >/dev/null 2>&1 || true
     elif [ "$USE_POWERPROFILESCTL" = true ] && [ -n "$ORIG_PROFILE" ]; then
-        echo -e "\n[+] Restauration du profil powerprofilesctl à : $ORIG_PROFILE..."
+        log_print -e "\n[+] Restauration du profil powerprofilesctl à : $ORIG_PROFILE..."
         powerprofilesctl set "$ORIG_PROFILE" >/dev/null 2>&1 || true
     fi
 }
@@ -274,8 +454,10 @@ trap 'cleanup' EXIT
 
 # Bascule initiale vers le mode performance
 ensure_performance_mode
-echo "[+] Attente de 3 secondes pour la stabilisation des états d'alimentation..."
-sleep 3
+if [ "$SKIP_POWER_FLAG" = false ]; then
+    log_print "[+] Attente de 3 secondes pour la stabilisation des états d'alimentation..."
+    sleep 3
+fi
 
 # Fonction utilitaire pour exécuter un benchmark
 # Arguments :
@@ -291,15 +473,17 @@ run_benchmark() {
     local outfile="$4"
     local var_prefix="$5"
 
-    echo -e "\n=================================================="
-    echo "Lancement du Benchmark : $label"
-    if [ -n "$wrapper" ]; then
-        echo "Commande : $wrapper bash -c \"time $payload\""
-    else
-        echo "Commande : time $payload"
+    if [ "$QUIET_FLAG" = false ]; then
+        echo -e "\n=================================================="
+        echo "Lancement du Benchmark : $label"
+        if [ -n "$wrapper" ]; then
+            echo "Commande : $wrapper bash -c \"time $payload\""
+        else
+            echo "Commande : time $payload"
+        fi
+        echo "Sauvegarde des résultats dans : $outfile"
+        echo "=================================================="
     fi
-    echo "Sauvegarde des résultats dans : $outfile"
-    echo "=================================================="
 
     # Initialisation du fichier de sortie
     echo "=== Benchmark : $label ===" > "$outfile"
@@ -313,7 +497,7 @@ run_benchmark() {
 
     local times=()
     for ((i=1; i<=NUM_RUNS; i++)); do
-        echo -n "  Exécution $i/$NUM_RUNS... "
+        log_print_n "  Exécution $i/$NUM_RUNS... "
 
         # Exécution de la commande et capture du stderr de time
         local time_output
@@ -328,7 +512,7 @@ run_benchmark() {
 
         # Vérifier si la commande a été interrompue par Ctrl+C (code de sortie 130 ou 143)
         if [ $status -eq 130 ] || [ $status -eq 143 ]; then
-            echo "INTERROMPU"
+            log_print "INTERROMPU"
             echo "Run $i : INTERROMPU" >> "$outfile"
             echo "--------------------------------------" >> "$outfile"
             interrupted=true
@@ -336,7 +520,7 @@ run_benchmark() {
         fi
 
         if [ $status -ne 0 ]; then
-            echo "ÉCHEC (code de sortie $status)"
+            log_print "ÉCHEC (code de sortie $status)"
             echo "Run $i : ÉCHEC (code de sortie $status)" >> "$outfile"
             echo "$time_output" >> "$outfile"
             echo "--------------------------------------" >> "$outfile"
@@ -348,7 +532,7 @@ run_benchmark() {
         local real_time
         real_time=$(echo "$time_output" | awk '/real/ { split($2, a, "m"); gsub(/s/, "", a[2]); print a[1] * 60 + a[2] }')
 
-        echo "Terminé (${real_time}s)"
+        log_print "Terminé (${real_time}s)"
 
         # Écriture dans le fichier de sortie
         echo "Run $i : ${real_time}s" >> "$outfile"
@@ -365,7 +549,7 @@ run_benchmark() {
     done
 
     if [ ${#times[@]} -eq 0 ]; then
-        echo "Erreur : Toutes les exécutions ont échoué pour $label."
+        log_print "Erreur : Toutes les exécutions ont échoué pour $label."
         echo "Toutes les exécutions ont échoué." >> "$outfile"
         return 1
     fi
@@ -411,13 +595,13 @@ run_benchmark "Normal Python" "" "$payload_cmd" "$PERF_DIR/normal_python_perf-${
 if command -v game-performance >/dev/null 2>&1; then
     run_benchmark "Game Performance" "game-performance" "$payload_cmd" "$PERF_DIR/game-performance_python_perf-${TIMESTAMP}.txt" "game_performance_python_perf"
 else
-    echo -e "\n[-] game-performance n'est pas installé. Saut de ce benchmark."
+    log_print -e "\n[-] game-performance n'est pas installé. Saut de ce benchmark."
 fi
 
 if command -v gamemoderun >/dev/null 2>&1; then
     run_benchmark "GameMode Run" "gamemoderun" "$payload_cmd" "$PERF_DIR/gamemoderun_python_perf-${TIMESTAMP}.txt" "gamemoderun_python_perf"
 else
-    echo -e "\n[-] gamemoderun n'est pas installé. Saut de ce benchmark."
+    log_print -e "\n[-] gamemoderun n'est pas installé. Saut de ce benchmark."
 fi
 
 # Fonction utilitaire pour formater une ligne du tableau de résultats finaux
@@ -432,7 +616,7 @@ print_row() {
     fi
 }
 
-# Affichage des résultats finaux dans le terminal
+# Affichage des résultats finaux dans le terminal (toujours affichés)
 echo -e "\n"
 echo "=================================================="
 echo "                RÉSULTATS FINAUX                  "
@@ -443,8 +627,8 @@ print_row "Normal Python" "$normal_python_perf_total" "$normal_python_perf_avg"
 print_row "game-performance" "$game_performance_python_perf_total" "$game_performance_python_perf_avg"
 print_row "gamemoderun" "$gamemoderun_python_perf_total" "$gamemoderun_python_perf_avg"
 echo "=================================================="
-echo "Rapports détaillés écrits dans le dossier $PERF_DIR :"
-echo "  - $PERF_DIR/normal_python_perf-${TIMESTAMP}.txt"
-[ "$game_performance_python_perf_total" != "N/A" ] && echo "  - $PERF_DIR/game-performance_python_perf-${TIMESTAMP}.txt"
-[ "$gamemoderun_python_perf_total" != "N/A" ] && echo "  - $PERF_DIR/gamemoderun_python_perf-${TIMESTAMP}.txt"
+echo "Rapports détaillés écrits dans le dossier ${PERF_DIR/#$HOME/\~} :"
+echo "  - ${PERF_DIR/#$HOME/\~}/normal_python_perf-${TIMESTAMP}.txt"
+[ "$game_performance_python_perf_total" != "N/A" ] && echo "  - ${PERF_DIR/#$HOME/\~}/game-performance_python_perf-${TIMESTAMP}.txt"
+[ "$gamemoderun_python_perf_total" != "N/A" ] && echo "  - ${PERF_DIR/#$HOME/\~}/gamemoderun_python_perf-${TIMESTAMP}.txt"
 echo ""

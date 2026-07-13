@@ -88,6 +88,7 @@ Outils tiers à installer si besoin pour pouvoir utiliser les shells et les fich
 - [msedit](https://github.com/microsoft/edit) - *Éditeur de texte simple d'utilisation (Comme Notepad + Couleurs)*
 - [Oh-My-Posh](https://ohmyposh.dev/) - *Prompt pour les shells*
 - [Oh-My-Zsh](https://ohmyz.sh/) - *Plugins et Prompt pour ZSH*
+- [Python 3](https://www.python.org/) - *Language de programmation multiplateformes*
 - [ripgrep](https://github.com/burntsushi/ripgrep) - *Meilleure version de `grep`*
 - [SSHFS](https://github.com/libfuse/sshfs) (Pour Windows [SSHFS-Win](https://github.com/winfsp/sshfs-win)) - *Accès aux Fichiers de Téléphone via Ordi*
 - [Sysinternals Suite](https://learn.microsoft.com/fr-fr/sysinternals/downloads/sysinternals-suite) - *Ensemble d'outils pour Windows*
