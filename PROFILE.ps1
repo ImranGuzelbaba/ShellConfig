@@ -63,3 +63,11 @@ $prog = "$programfiles"
 $programfiles86 = "${env:ProgramFiles(x86)}"    # "C:\Program Files (x86)"
 $prog86 = "$programfiles86"
 $tmp = "$env:TEMP"                              # "$HOME\AppData\Local\Temp"
+
+<### Chargement des scripts additionnels ###>
+# Chargement automatique des fonctions de batterie si le script existe
+$PowerAlertPath = "$HOME\ShellConfig\scripts\Windows\PowerAlert_PROFILE.ps1"
+if (Test-Path $PowerAlertPath) {
+    . $PowerAlertPath
+    # Start-BatteryMonitor # Décommenter pour lancer la surveillance automatiquement à l'ouverture de PowerShell
+}

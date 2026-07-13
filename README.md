@@ -3,6 +3,9 @@
 Ce repo contient plein d'alias, fonctions et scripts que j'utilise et qui sont dans les fichiers config des shells (`ZSH` et `PowerShell`) ou fichiers exécutables à part.\
 Ils ont été écrits par moi mais aussi aidés et générés par IA (pas de **AI Slop**, je regarde le code, je teste bien et je corrige !).
 
+> [!NOTE]
+> Des documentations spécifiques détaillées sont disponibles directement dans les sous-dossiers, comme pour les scripts Windows dans [scripts/Windows/README.md](file:///home/imran/ShellConfig/scripts/Windows/README.md).
+
 ---
 ## Exemples de Fonctionnalités
 
