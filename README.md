@@ -19,7 +19,7 @@ Ils ont été écrits par moi mais aussi aidés et générés par IA (pas de **A
 - Avoir [`ZSH`](https://www.zsh.org/) [(Aide d'installation)](https://github.com/ohmyzsh/ohmyzsh/wiki/Installing-ZSH)
 - Avoir [`Termux`](https://termux.dev/en/) pour avoir un terminal sur Android
 
-Certaines fonctions et alias nécessitent des outils tiers.\
+Certaines fonctions, scripts et alias nécessitent des outils tiers (et modules pour **PowerShell**).\
 Sur Linux, pour installer les outils, on peut utiliser simplement le gestionnaire de paquets (`apt`, `pacman`, `dnf`, ...), mais aussi sur Windows via `WinGet`.
 Rechercher d'abord dans les dépôts via le gestionnaire de paquet est très recommandé:
 ### Arch based (CachyOS, Manjaro, ...)
@@ -79,8 +79,31 @@ Rechercher d'abord dans les dépôts via le gestionnaire de paquet est très rec
    winget install [ID_PAQUET]
    ```
 
-### Outils
+### Modules PowerShell
+Les modules permettent d'ajouter des scripts, fonctions, commandes custom, développés par des personnes, tiers ou de Microsoft, pour PowerShell.
+
+##### Recherche
+Avant d'installer, faire une recherche permet d'être sûr d'avoir le bon nom.
+On recherche avec la commande suivante:
+   ```powershell
+   Find-Module [MODULE]
+   ```
+Note: On peut mettre des astérisques pour rechercher tous ce qui est en rapport avec le nom du module.
+Par exemple on cherche les modules de Microsoft comme ceci:
+   ```powershell
+   Find-Module Microsoft.*
+   ```
+
+##### Installation
+   ```powershell
+   Install-Module [MODULE]
+   ```
+
+
+### Outils Et Modules PowerShell
+#### Outils
 Outils tiers à installer si besoin pour pouvoir utiliser les shells et les fichiers de configurations:
+
 - [7-zip](https://www.7-zip.org/) - *Compression et Archivage des fichiers (Moderne)*
 - [adb](https://developer.android.com/tools/adb?hl=fr) (via [SCRCPY](https://scrcpy.org/) pour Windows) - *Accès au Téléphone via Ordi*
 - [bat](https://github.com/sharkdp/bat) - *Meilleure version de `cat`*
@@ -99,6 +122,10 @@ Outils tiers à installer si besoin pour pouvoir utiliser les shells et les fich
 - [xz](https://github.com/tukaani-project/xz) - *Compression et Archivage des fichiers*
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - *Téléchargeur de vidéo YouTube et d'autres sites*
 - [zoxide](https://github.com/ajeetdsouza/zoxide) - *Meilleure version de `cd`*
+
+#### Modules PowerShell
+Modules pour PowerShell à installer si besoin, les noms donnés sont les noms dans les dépôts, qu'on peut copier directement pour installer.
+- [BurntToast](https://github.com/Windos/BurntToast)
 
 ---
 ## Test
@@ -122,7 +149,7 @@ Lorsqu'on a fini de tester, on écrit `exit` ou on fait `[CTRL]+D`.
 On exécute `pwsh` avec comme arguments :
 - `-NoProfile` : Exécution sans chargement de configuration `$PROFILE`
 - `-NoExit` : Exécution sans la fin de programme (intéractif)
-- `-Command` : Exécution de commande (ici sourcer le fichier de config)
+- `-Command` : Exécution de commande (ici sourcer le fichier de config en faisant ". [Chemin/Fichier]")
 
    ```powershell
    pwsh -NoProfile -NoExit -Command ". $HOME\ShellConfig\PROFILE.ps1"
