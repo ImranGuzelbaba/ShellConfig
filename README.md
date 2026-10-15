@@ -111,7 +111,7 @@ Outils tiers à installer si besoin pour pouvoir utiliser les shells et les fich
 - [fd](https://github.com/sharkdp/fd) - *Meilleure version de `find`*
 - [GIT](https://git-scm.com/) - *Clonage des dépôts (+ Outils Linux pour Windows)*
 - [gsudo](https://github.com/gerardog/gsudo) - *Équivalent de `sudo` mais pour Windows*
-- [msedit](https://github.com/microsoft/edit) - *Éditeur de texte simple d'utilisation (Comme Notepad + Couleurs)*
+- [msedit](https://github.com/microsoft/edit) - *Éditeur de texte simple d'utilisation (Comme Notepad dans le terminal + Couleurs)*
 - [Oh-My-Posh](https://ohmyposh.dev/) - *Prompt pour les shells*
 - [Oh-My-Zsh](https://ohmyz.sh/) - *Plugins et Prompt pour ZSH*
 - [Python 3](https://www.python.org/) - *Language de programmation multiplateformes*
